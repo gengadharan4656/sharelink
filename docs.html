@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Technical Documentation — ShareLink (SLTP v2 Architecture)</title>
+  <meta name="description" content="Technical documentation and protocol specification for ShareLink and SLTP v2. Learn how offline encrypted peer-to-peer file transfer works.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="./" class="brand-link" aria-label="ShareLink Home">
+        <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+        <span class="brand-name">Share<span>Link</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="./">Home</a></li>
+          <li><a href="./#how-it-works">How It Works</a></li>
+          <li><a href="./#features">Features</a></li>
+          <li><a href="./#platforms">Platforms</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="docs.html" class="active">Docs</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-cta">
+        <a href="downloads.html" class="btn btn-primary btn-sm">Get ShareLink</a>
+        <button class="mobile-menu-toggle" id="mobileMenuBtn" aria-label="Toggle navigation menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <div class="container">
+        <div class="badge" style="margin-bottom: 1rem;">
+          <span class="badge-dot"></span> Protocol Specification
+        </div>
+        <h1 class="page-title">Technical Architecture &amp; SLTP v2</h1>
+        <p class="page-subtitle">
+          An in-depth guide to ShareLink's wire framing, cryptographic primitives, and offline local network streaming engine.
+        </p>
+      </div>
+    </section>
+
+    <section class="container">
+      <div class="doc-content">
+        <h2>1. System Architecture Overview</h2>
+        <p>
+          ShareLink operates on a <strong>decentralized, peer-to-peer, offline-first</strong> model. When an Android user initiates a transfer session:
+        </p>
+        <ol>
+          <li>The Android application starts an embedded local HTTP server (bound to port <code>8080</code> or a dynamic fallback port).</li>
+          <li>A 256-bit session token and pairing secret are generated locally.</li>
+          <li>A pairing QR code is generated containing:
+            <pre><code>http://&lt;sender-ip&gt;:&lt;port&gt;/s/&lt;sessionToken&gt;#&lt;pairingSecret&gt;</code></pre>
+          </li>
+          <li>Clients connect over the local physical network (Wi-Fi router or portable mobile hotspot).</li>
+        </ol>
+
+        <div class="arch-distinction-banner" style="margin: 1.5rem 0;">
+          <div class="banner-icon">ℹ️</div>
+          <div class="banner-content">
+            <h4>Important: Architectural Separation</h4>
+            <p>
+              This website (hosted on GitHub Pages) is purely an informational and download portal. <strong>It never acts as a transfer proxy or relay.</strong> File transfers occur entirely peer-to-peer across your local Wi-Fi router or Android hotspot.
+            </p>
+          </div>
+        </div>
+
+        <h2>2. SLTP v2 Wire Protocol Specification</h2>
+        <p>
+          The <strong>ShareLink Transfer Protocol version 2 (SLTP v2)</strong> structures all streaming data into deterministic, binary-framed chunks with a 40-byte fixed header:
+        </p>
+
+        <pre><code>+-------------------------------------------------------------+
+| SLTP v2 40-Byte Binary Frame Structure                     |
++-------------------------------------------------------------+
+| Byte 00..03 : Magic Number 0x534C4632 ('SLF2')              |
+| Byte 04..04 : Protocol Version (0x02)                       |
+| Byte 05..05 : Flags (Bit 0: IsLastChunk, Bit 1: IsEncrypted)|
+| Byte 06..07 : Reserved / Future use                         |
+| Byte 08..15 : 64-bit Chunk Index (Big-Endian)               |
+| Byte 16..23 : 64-bit Byte Offset in File (Big-Endian)       |
+| Byte 24..27 : 32-bit Plaintext Payload Length               |
+| Byte 28..31 : 32-bit Ciphertext Payload Length              |
+| Byte 32..43 : 96-bit (12-byte) AES-GCM IV Nonce             |
++-------------------------------------------------------------+
+| Byte 44..N  : Ciphertext Payload + 16-byte AEAD Auth Tag    |
++-------------------------------------------------------------+</code></pre>
+
+        <h3>Frame Header Fields</h3>
+        <ul>
+          <li><strong>Magic (4 bytes):</strong> <code>0x534C4632</code> ASCII representation for <code>SLF2</code>. Confirms wire protocol compatibility.</li>
+          <li><strong>Version (1 byte):</strong> <code>0x02</code> representing SLTP v2.</li>
+          <li><strong>Flags (1 byte):</strong> Bitmask for chunk sequencing:
+            <ul>
+              <li><code>0x01</code>: <code>isLastChunk</code> flag indicating final payload chunk.</li>
+              <li><code>0x02</code>: <code>isEncrypted</code> flag indicating AEAD ciphertext.</li>
+            </ul>
+          </li>
+          <li><strong>Chunk Index (8 bytes):</strong> Monotonically increasing sequence index starting at <code>0</code>.</li>
+          <li><strong>Byte Offset (8 bytes):</strong> Exact byte seek position for chunk resumption and RFC 7233 range seeks.</li>
+          <li><strong>Lengths (8 bytes):</strong> Plaintext size and Ciphertext size (Plaintext + 16-byte tag).</li>
+          <li><strong>IV Nonce (12 bytes):</strong> 96-bit unique vector conforming to NIST SP 800-38D.</li>
+        </ul>
+
+        <h2>3. Cryptographic Security Invariants</h2>
+        <h3>AEAD Authenticated Encryption</h3>
+        <p>
+          Every chunk is encrypted with <strong>AES-256-GCM</strong>. Galois/Counter Mode provides both confidentiality and data authenticity:
+        </p>
+        <ul>
+          <li><strong>Per-File Key Isolation:</strong> From the master session key, independent 256-bit symmetric keys are derived for each file using <code>HKDF-SHA256(sessionKey, info="ShareLink-v2-FileKey-download-&lt;fileId&gt;")</code>. This eliminates the risk of nonce reuse across multiple files in the same session.</li>
+          <li><strong>Monotonic Nonces:</strong> The 12-byte IV consists of a 4-byte random invocation salt followed by the 8-byte big-endian chunk index.</li>
+          <li><strong>Directional Isolation:</strong> Uploads (client to server) and downloads (server to client) derive separate directional keys (<code>c2s</code> vs <code>s2c</code>), preventing reflection attacks.</li>
+          <li><strong>Progressive SHA-256 Digest:</strong> All incoming chunks are validated through a continuous streaming SHA-256 digest on the receiver before the temporary <code>.part</code> file is atomically renamed.</li>
+        </ul>
+
+        <h2>4. High-Performance Bounded Streaming</h2>
+        <p>
+          To maintain high throughput on low-memory devices (such as 4 GB – 8 GB RAM phones and laptops), ShareLink implements:
+        </p>
+        <ul>
+          <li><strong>512 KB Chunk Slicing:</strong> Chunks are sized to maximize Wi-Fi packet aggregation while maintaining low memory pressure.</li>
+          <li><strong>Socket Backpressure:</strong> Sender uses <code>await response.flush()</code> on the HTTP socket so fast disk reads do not overwhelm receiver consumption buffers.</li>
+          <li><strong>Resume Recovery:</strong> RFC 7233 <code>Range: bytes=start-</code> headers combined with <code>x-sharelink-resume-offset</code> allow broken transfers to resume without restarting.</li>
+        </ul>
+
+        <h2>5. Network Troubleshooting Guide</h2>
+        <h3>Android Portable Hotspot Mode (Recommended for Anywhere Sharing)</h3>
+        <p>
+          When no Wi-Fi router is available, turn on your Android Portable Hotspot. Connect the receiver to the hotspot. The sender automatically detects the hotspot gateway interface (e.g., <code>192.168.43.1</code>) and opens the transfer port.
+        </p>
+
+        <h3>Windows Firewall Configuration</h3>
+        <p>
+          If receiving on a Windows browser, no configuration is needed. If running a future desktop native server, ensure incoming TCP traffic on port <code>8080</code> is allowed on Private Networks in Windows Defender Firewall.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="./" class="brand-link">
+            <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+            <span class="brand-name">Share<span>Link</span></span>
+          </a>
+          <p>High-speed, offline-first cross-platform file transfer platform by <strong>Gen Soft Tech</strong>.</p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Platform</h5>
+          <ul>
+            <li><a href="./#features">Features</a></li>
+            <li><a href="./#how-it-works">How It Works</a></li>
+            <li><a href="downloads.html">Download APK</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Resources</h5>
+          <ul>
+            <li><a href="docs.html">Protocol Docs</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="./#faq">FAQ</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Developer</h5>
+          <ul>
+            <li><span style="color: var(--text-secondary); font-size: 0.9rem;">Gen Soft Tech</span></li>
+            <li><span style="color: var(--text-muted); font-size: 0.85rem;">Package: com.gensofttech.sharelink</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Gen Soft Tech. All rights reserved. ShareLink is an offline-first file sharing solution.</div>
+        <div>Hosted on GitHub Pages • SLTP v2 Certified</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

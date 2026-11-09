@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — ShareLink (Gen Soft Tech)</title>
+  <meta name="description" content="ShareLink Privacy Policy. 100% offline-first local file transfer. Zero cloud storage, zero tracking, zero account requirements.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="./" class="brand-link" aria-label="ShareLink Home">
+        <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+        <span class="brand-name">Share<span>Link</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="./">Home</a></li>
+          <li><a href="./#how-it-works">How It Works</a></li>
+          <li><a href="./#features">Features</a></li>
+          <li><a href="./#platforms">Platforms</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="docs.html">Docs</a></li>
+          <li><a href="privacy.html" class="active">Privacy</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-cta">
+        <a href="downloads.html" class="btn btn-primary btn-sm">Get ShareLink</a>
+        <button class="mobile-menu-toggle" id="mobileMenuBtn" aria-label="Toggle navigation menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <div class="container">
+        <div class="badge" style="margin-bottom: 1rem;">
+          <span class="badge-dot"></span> Zero Cloud Telemetry
+        </div>
+        <h1 class="page-title">Privacy Policy</h1>
+        <p class="page-subtitle">
+          ShareLink is built on a fundamental principle: your files and personal data should never leave your local physical network.
+        </p>
+      </div>
+    </section>
+
+    <section class="container">
+      <div class="doc-content">
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; font-family: var(--font-mono);">
+          Effective Date: November 9, 2026 • Brand: Gen Soft Tech • App ID: com.gensofttech.sharelink
+        </div>
+
+        <h2>1. Architecture &amp; Data Collection Overview</h2>
+        <p>
+          ShareLink is an <strong>offline-first, peer-to-peer file transfer utility</strong>. We do not collect, process, sell, monetize, or transmit your files, personal identification, or device metadata to any remote cloud servers.
+        </p>
+        <ul>
+          <li><strong>No User Accounts:</strong> You do not need an email, phone number, password, or third-party login to use ShareLink.</li>
+          <li><strong>No Cloud File Intermediaries:</strong> Files transferred using ShareLink travel directly between the sending device and receiving device across your local Wi-Fi or mobile hotspot. No intermediate copies are uploaded to the internet.</li>
+          <li><strong>Zero Tracking &amp; Analytics:</strong> The ShareLink application contains zero commercial tracking SDKs, zero advertising networks, and zero behavioral analytics trackers.</li>
+        </ul>
+
+        <h2>2. Cryptographic Zero-Knowledge Pairing</h2>
+        <p>
+          To protect your privacy even on shared or open Wi-Fi networks, ShareLink implements zero-knowledge pairing:
+        </p>
+        <ul>
+          <li>When an Android sender initializes a transfer session, a 256-bit pairing secret is generated locally using a cryptographically secure pseudo-random number generator.</li>
+          <li>This secret is encoded exclusively into the QR code's URL hash fragment (e.g. <code>#pairingSecret</code>). Per standard HTTP specifications (RFC 3986), the hash fragment is strictly evaluated in memory by the client's browser and is never transmitted over the local network wire.</li>
+          <li>Symmetric AES-256-GCM encryption keys are derived on-device using HKDF-SHA256. Neither external parties nor network eavesdroppers can view or decrypt your file stream.</li>
+        </ul>
+
+        <h2>3. Android Runtime Permissions &amp; Scopes</h2>
+        <p>
+          ShareLink requests only the minimum OS permissions necessary to facilitate offline local transfers:
+        </p>
+        <ul>
+          <li><strong>Camera (<code>android.permission.CAMERA</code>):</strong> Used strictly to scan QR codes for device pairing. No images, video recordings, or facial data are ever saved, stored, or transmitted.</li>
+          <li><strong>Nearby Devices (<code>android.permission.NEARBY_WIFI_DEVICES</code>):</strong> Required on Android 13+ to discover nearby peers via mDNS, Wi-Fi Direct, and BLE without requesting coarse location.</li>
+          <li><strong>Storage &amp; Media:</strong> Used solely to allow you to select files you wish to transfer and to write incoming files to your device's standard public <code>Downloads/ShareLink</code> folder. ShareLink does not access files outside your explicit selection.</li>
+          <li><strong>Notifications (<code>android.permission.POST_NOTIFICATIONS</code>):</strong> Used exclusively to display transfer progress in the foreground notification bar while large files are moving.</li>
+        </ul>
+
+        <h2>4. Separation of Public Website &amp; Transfer Service</h2>
+        <p>
+          The website hosted at <code>https://gengadharan4656.github.io/sharelink/</code> is a static informational distribution site hosted on GitHub Pages.
+        </p>
+        <p>
+          This public website is completely separate from the Android local transfer server. <strong>The public website does not act as a relay, does not receive file uploads, and does not retain file logs.</strong> Actual transfers are processed exclusively by the ephemeral HTTP server started on the Android sender device on your local private subnet.
+        </p>
+
+        <h2>5. Storage &amp; Data Retention</h2>
+        <p>
+          ShareLink does not maintain permanent transfer manifests on disk. Once a transfer is dismissed, active session keys and memory references are zeroized in RAM (<code>sessionKey.fillRange(0, length, 0)</code>) to prevent cold-boot memory attacks.
+        </p>
+
+        <h2>6. Contact Information</h2>
+        <p>
+          If you have questions, feedback, or security inquiries regarding ShareLink's privacy practices, please contact the development team:
+        </p>
+        <p style="font-family: var(--font-mono); color: var(--accent-light);">
+          Developer: Gen Soft Tech<br>
+          GitHub: <a href="https://github.com/gengadharan4656/sharelink" target="_blank" rel="noopener">https://github.com/gengadharan4656/sharelink</a><br>
+          Application ID: com.gensofttech.sharelink
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="./" class="brand-link">
+            <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+            <span class="brand-name">Share<span>Link</span></span>
+          </a>
+          <p>High-speed, offline-first cross-platform file transfer platform by <strong>Gen Soft Tech</strong>.</p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Platform</h5>
+          <ul>
+            <li><a href="./#features">Features</a></li>
+            <li><a href="./#how-it-works">How It Works</a></li>
+            <li><a href="downloads.html">Download APK</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Resources</h5>
+          <ul>
+            <li><a href="docs.html">Protocol Docs</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="./#faq">FAQ</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Developer</h5>
+          <ul>
+            <li><span style="color: var(--text-secondary); font-size: 0.9rem;">Gen Soft Tech</span></li>
+            <li><span style="color: var(--text-muted); font-size: 0.85rem;">Package: com.gensofttech.sharelink</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Gen Soft Tech. All rights reserved. ShareLink is an offline-first file sharing solution.</div>
+        <div>Hosted on GitHub Pages • Zero Cloud Telemetry</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

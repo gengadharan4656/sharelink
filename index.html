@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShareLink — Your Files. Your Devices. Your Network.</title>
+  <meta name="description" content="Fast, offline-first cross-platform file sharing by Gen Soft Tech. Transfer large files directly between Android, iOS, Windows, and macOS over local Wi-Fi. No internet required.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Site Navigation Header -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="./" class="brand-link" aria-label="ShareLink Home">
+        <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+        <span class="brand-name">Share<span>Link</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="./" class="active">Home</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#platforms">Platforms</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="docs.html">Docs</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-cta">
+        <a href="downloads.html" class="btn btn-primary btn-sm">Get ShareLink</a>
+        <button class="mobile-menu-toggle" id="mobileMenuBtn" aria-label="Toggle navigation menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Hero Section -->
+  <main>
+    <section class="hero-section">
+      <div class="container hero-content">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          Offline-First • AES-256-GCM Encrypted • Zero Cloud Intermediaries
+        </div>
+
+        <h1 class="hero-title">
+          <span class="text-gradient">Your Files. Your Devices.</span><br>Your Network.
+        </h1>
+
+        <p class="hero-subtitle">
+          ShareLink transfers photos, 4K videos, documents, and large files directly between Android, Windows, iOS, and Mac at the maximum speed of your local Wi-Fi or hotspot. No cloud uploads. No data limits. No internet required.
+        </p>
+
+        <div class="hero-actions">
+          <a href="downloads.html" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download ShareLink
+          </a>
+          <a href="#features" class="btn btn-secondary btn-lg">Explore Features</a>
+        </div>
+
+        <!-- Architecture Distinction Alert -->
+        <div class="arch-distinction-banner">
+          <div class="banner-icon">🛡️</div>
+          <div class="banner-content">
+            <h4>Decentralized Offline Architecture</h4>
+            <p>
+              This website is an informational and distribution portal hosted on GitHub Pages. <strong>Your files never pass through GitHub or any cloud server.</strong> When you share files with ShareLink, the Android application starts a local transfer engine directly on your Wi-Fi subnet or mobile hotspot, streaming encrypted binary frames directly to paired devices.
+            </p>
+          </div>
+        </div>
+
+        <!-- Hero UI Preview Showcase -->
+        <div class="preview-container">
+          <div class="app-mockup">
+            <div class="mockup-header">
+              <div class="mockup-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mockup-title">SLTP/2.0 — Local Encrypted Transfer Active</div>
+              <div class="badge" style="font-size: 0.7rem; padding: 0.2rem 0.6rem;">Direct P2P Link</div>
+            </div>
+
+            <div class="mockup-body">
+              <!-- Sender Pane -->
+              <div class="mockup-pane">
+                <div class="pane-title">
+                  <span>Android Sender</span>
+                  <span style="color: var(--accent-light); font-size: 0.8rem;">● Host Engine Active</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                  Streaming 512 KB authenticated frames over Wi-Fi Hotspot:
+                </p>
+                <div class="transfer-file-item">
+                  <div class="file-info">
+                    <span class="file-icon">🎬</span>
+                    <div>
+                      <div style="font-weight: 600;">Project_Footage_4K.mov</div>
+                      <div style="font-size: 0.75rem; color: var(--text-muted);">248.5 MB • Video/QuickTime</div>
+                    </div>
+                  </div>
+                  <span class="badge" style="background: rgba(16, 185, 129, 0.1);">AES-GCM</span>
+                </div>
+
+                <div class="transfer-progress-bar">
+                  <div class="progress-fill" id="simProgressFill"></div>
+                </div>
+
+                <div class="stats-row">
+                  <span id="simSpeed">26.4 MB/s</span>
+                  <span id="simBytes">198.2 MB / 248.5 MB (80%)</span>
+                  <span>ETA: <span id="simEta">2s</span></span>
+                </div>
+              </div>
+
+              <!-- Receiver Pane -->
+              <div class="mockup-pane">
+                <div class="pane-title">
+                  <span>Receiver (Browser / Native)</span>
+                  <span style="color: var(--accent-light); font-size: 0.8rem;">SHA-256 Verified ✓</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                  Receiving on Chrome, Safari, Edge, or Android client:
+                </p>
+                <div style="background-color: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); font-size: 0.82rem; font-family: var(--font-mono); color: var(--text-secondary);">
+                  <div>[Wire Protocol] SLF2 Magic (40-byte header)</div>
+                  <div>[Cipher] AES-256-GCM AEAD (128-bit tag)</div>
+                  <div>[Key Isolation] HKDF-SHA256 per-file keys</div>
+                  <div>[Integrity] Stream Hash Check: Match true</div>
+                </div>
+                <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 0.82rem; color: var(--text-muted);">Zero install required on PC/iOS</span>
+                  <span class="btn btn-outline btn-sm" style="pointer-events: none;">Web Receiver Ready</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="section" id="how-it-works">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Frictionless Workflow</div>
+          <h2 class="section-title">How ShareLink Works</h2>
+          <p class="section-subtitle">Transfer files of any size in three secure, simple steps without an internet connection.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-number">01</div>
+            <h3 class="step-title">Select Files on Android</h3>
+            <p class="step-desc">
+              Open the ShareLink app on your Android device. Select any combination of photos, videos, apps (APK), PDFs, or documents with instant deferred isolate hashing.
+            </p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">02</div>
+            <h3 class="step-title">Scan or Share QR Code</h3>
+            <p class="step-desc">
+              ShareLink launches a secure local server and displays a pairing QR code. The pairing secret is encoded in a URL hash fragment (<code>#secret</code>), ensuring it is never sent across the network wire.
+            </p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">03</div>
+            <h3 class="step-title">Transfer at Wire Speed</h3>
+            <p class="step-desc">
+              The receiving device—whether another Android phone, a Windows laptop, or an iPhone—connects over Wi-Fi or hotspot. Files stream directly between devices with AEAD encryption and verified SHA-256 integrity.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Verified Features Section -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Engineered For Performance</div>
+          <h2 class="section-title">Verified Core Capabilities</h2>
+          <p class="section-subtitle">Every feature listed below is implemented and tested in the ShareLink engineering core.</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h3 class="feature-title">SLTP v2 & AES-256-GCM</h3>
+            <p class="feature-desc">
+              Our custom ShareLink Transfer Protocol (SLTP v2) packages 512 KB chunks into deterministic 40-byte binary framed packets with 128-bit authentication tags to prevent tampering.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+            <h3 class="feature-title">Pure Offline Operation</h3>
+            <p class="feature-desc">
+              Works completely without cellular data or internet access. Connect through an existing Wi-Fi router or turn on your Android portable hotspot for anywhere sharing.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <h3 class="feature-title">Zero-Install Web Receiver</h3>
+            <p class="feature-desc">
+              Receiving on Windows, Mac, or iOS? No app installation required! Simply scan the QR code with your camera to open the high-performance local web receiver directly in your browser.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+            <h3 class="feature-title">Large Files & Resumable Streams</h3>
+            <p class="feature-desc">
+              Transfer 10 GB+ videos without memory crashes. Memory-bounded streaming with backpressure flushing and RFC 7233 range resumption recovers paused transfers seamlessly.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 class="feature-title">Zero-Knowledge QR Pairing</h3>
+            <p class="feature-desc">
+              Transfer session secrets are encoded exclusively in the URL hash fragment (<code>#pairingSecret</code>), ensuring symmetric encryption keys are derived client-side and never transit the wire.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <h3 class="feature-title">Automatic Storage & Media Indexing</h3>
+            <p class="feature-desc">
+              Files are saved safely into public <code>Downloads/ShareLink</code>. MediaScanner is automatically invoked so photos and videos immediately appear in your device's Gallery.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Platform Support Section -->
+    <section class="section" id="platforms">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Universal Connectivity</div>
+          <h2 class="section-title">Supported Transfer Directions</h2>
+          <p class="section-subtitle">ShareLink provides native Android speed with zero-install browser compatibility across every major operating system.</p>
+        </div>
+
+        <div class="platforms-grid">
+          <div class="platform-card">
+            <div class="platform-icon">🤖</div>
+            <div class="platform-name">Android</div>
+            <div class="platform-mode">Native App &amp; Engine</div>
+            <p class="platform-desc">Full sender &amp; receiver support. Camera QR scanner, radar discovery, and foreground streaming.</p>
+          </div>
+
+          <div class="platform-card">
+            <div class="platform-icon">🪟</div>
+            <div class="platform-name">Windows PC</div>
+            <div class="platform-mode">Web Receiver &amp; Sender</div>
+            <p class="platform-desc">High-speed transfers via Chrome, Edge, or Firefox with Direct-to-Disk File System Access API.</p>
+          </div>
+
+          <div class="platform-card">
+            <div class="platform-icon">🍎</div>
+            <div class="platform-name">iPhone / iPad</div>
+            <div class="platform-mode">Safari Web Client</div>
+            <p class="platform-desc">Receive or send files directly in Safari with Web Crypto decryption. No App Store install required.</p>
+          </div>
+
+          <div class="platform-card">
+            <div class="platform-icon">💻</div>
+            <div class="platform-name">macOS / Linux</div>
+            <div class="platform-mode">Browser Client</div>
+            <p class="platform-desc">Universal browser compatibility. Receive large files without third-party drivers or software.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Got Questions?</div>
+          <h2 class="section-title">Frequently Asked Questions</h2>
+          <p class="section-subtitle">Real architectural answers based on our verified offline transfer engine.</p>
+        </div>
+
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Does ShareLink require an internet connection?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>No. ShareLink is 100% offline-first. Transfers take place directly over your local Wi-Fi network or an Android portable mobile hotspot. No internet access or mobile data is ever used.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Does the receiver need to install the ShareLink app?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Only if transferring Android-to-Android natively! For Windows, Mac, iOS, or other platforms, the receiver simply scans the QR code with their camera and opens ShareLink's built-in Web Receiver in their browser. Zero software installation is needed.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Does ShareLink store my files on a cloud server?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Never. ShareLink has zero cloud servers, zero database backends, and zero accounts. Files travel exclusively peer-to-peer over the local link from sender RAM/disk to receiver RAM/disk.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>How are transfers encrypted?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>ShareLink uses authenticated AES-256-GCM encryption with per-file HKDF-SHA256 derived keys and monotonic 96-bit nonces. The encryption key is derived using an out-of-band secret from the QR code hash fragment, ensuring wire eavesdroppers cannot decrypt the data.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Can I transfer large files (e.g., 5 GB – 10 GB)?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. Our transfer engine operates with 512 KB streaming frames, socket backpressure flushing, and bounded memory buffers. We have benchmarked files over 1 GB with stable peak RSS under 180 MB.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Where are received files stored on Android?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Files are stored directly in your public <code>Downloads/ShareLink</code> folder. Received photos and videos are automatically indexed using the Android MediaScanner so they immediately show up in your Photos/Gallery app.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Call-to-Action -->
+    <section class="cta-section">
+      <div class="container">
+        <div class="cta-box">
+          <h2 class="cta-title">Ready for Truly Private File Sharing?</h2>
+          <p class="cta-subtitle">
+            Experience wire-speed, offline-first transfers with zero tracking and zero cloud lock-in.
+          </p>
+          <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="downloads.html" class="btn btn-primary btn-lg">Download ShareLink</a>
+            <a href="docs.html" class="btn btn-secondary btn-lg">Read Technical Docs</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="./" class="brand-link">
+            <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+            <span class="brand-name">Share<span>Link</span></span>
+          </a>
+          <p>
+            High-speed, offline-first cross-platform file transfer platform designed and developed by <strong>Gen Soft Tech</strong>.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Platform</h5>
+          <ul>
+            <li><a href="./#features">Features</a></li>
+            <li><a href="./#how-it-works">How It Works</a></li>
+            <li><a href="./#platforms">Supported Devices</a></li>
+            <li><a href="downloads.html">Download APK</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Resources</h5>
+          <ul>
+            <li><a href="docs.html">Protocol Docs</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="./#faq">FAQ</a></li>
+            <li><a href="https://github.com/gengadharan4656/sharelink" target="_blank" rel="noopener">GitHub Repository</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Developer</h5>
+          <ul>
+            <li><span style="color: var(--text-secondary); font-size: 0.9rem;">Gen Soft Tech</span></li>
+            <li><span style="color: var(--text-muted); font-size: 0.85rem;">Package: com.gensofttech.sharelink</span></li>
+            <li><span style="color: var(--text-muted); font-size: 0.85rem;">Protocol: SLTP v2 (AEAD)</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Gen Soft Tech. All rights reserved. ShareLink is an offline-first file sharing solution.</div>
+        <div>Hosted on GitHub Pages • Zero Cloud File Storage</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
