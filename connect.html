@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect & Transfer — ShareLink Cross-Platform Hub</title>
+  <meta name="description" content="Connect to nearby Android ShareLink devices over local Wi-Fi or hotspot. Send and receive files directly with zero cloud relay.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Specific styles for Connect & Transfer Hub */
+    .status-bar-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .status-not_connected { color: var(--text-muted); }
+    .status-connecting { color: #FBBF24; border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.1); }
+    .status-waiting_approval { color: #F97316; border-color: rgba(249, 115, 22, 0.3); background: rgba(249, 115, 22, 0.1); }
+    .status-connected { color: #10B981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.1); }
+    .status-connection_lost { color: #EF4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); }
+    .status-session_expired { color: #EAB308; border-color: rgba(234, 179, 8, 0.3); background: rgba(234, 179, 8, 0.1); }
+
+    .method-nav {
+      display: flex;
+      gap: 0.5rem;
+      background-color: var(--bg-surface);
+      padding: 0.4rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      margin-bottom: 2rem;
+    }
+
+    .method-tab-btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.95rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .method-tab-btn.active {
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .scanner-viewfinder {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 280px;
+      margin: 1.5rem auto;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background-color: #000000;
+      border: 2px dashed var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scanner-viewfinder video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scanner-viewfinder.active-scanning {
+      border: 2px solid var(--accent-primary);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+
+    .scan-laser {
+      display: none;
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-light), transparent);
+      box-shadow: 0 0 12px var(--accent-light);
+      animation: scanLaser 2s infinite ease-in-out;
+    }
+
+    .scanner-viewfinder.active-scanning .scan-laser {
+      display: block;
+    }
+
+    @keyframes scanLaser {
+      0% { top: 15%; }
+      50% { top: 85%; }
+      100% { top: 15%; }
+    }
+
+    .security-notice-box {
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .dropzone-box {
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-lg);
+      padding: 3rem 2rem;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.02);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .dropzone-box.drag-active {
+      border-color: var(--accent-primary);
+      background-color: var(--accent-glow);
+    }
+
+    .file-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.5rem;
+    }
+
+    .file-item-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .file-item-icon {
+      font-size: 1.25rem;
+    }
+
+    .file-item-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .file-item-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .btn-remove-file {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.25rem 0.5rem;
+      transition: color var(--transition-fast);
+    }
+
+    .btn-remove-file:hover {
+      color: #EF4444;
+    }
+
+    .empty-state {
+      padding: 2.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .preset-pill {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      background-color: rgba(255, 255, 255, 0.06);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      margin-right: 0.4rem;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+    }
+
+    .preset-pill:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-light);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="./" class="brand-link" aria-label="ShareLink Home">
+        <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+        <span class="brand-name">Share<span>Link</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="./">Home</a></li>
+          <li><a href="connect.html" class="active">Connect &amp; Transfer</a></li>
+          <li><a href="./#how-it-works">How It Works</a></li>
+          <li><a href="./#features">Features</a></li>
+          <li><a href="./#platforms">Platforms</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="docs.html">Docs</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-cta">
+        <a href="downloads.html" class="btn btn-primary btn-sm">Get ShareLink</a>
+        <button class="mobile-menu-toggle" id="mobileMenuBtn" aria-label="Toggle navigation menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 2.5rem; padding-bottom: 5rem;">
+    <!-- Page Headline -->
+    <div class="section-header" style="margin-bottom: 2rem;">
+      <div class="badge" style="margin-bottom: 0.75rem;">
+        <span class="badge-dot"></span> Offline Cross-Platform Hub
+      </div>
+      <h1 class="section-title">Connect &amp; Transfer</h1>
+      <p class="section-subtitle">
+        Pair directly with an Android ShareLink device over local Wi-Fi or mobile hotspot. Send and receive files at wire speed without internet.
+      </p>
+    </div>
+
+    <!-- Live Connection Status Bar -->
+    <div class="status-bar-wrapper">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">Status:</span>
+        <div id="connectionStatusBadge" class="status-pill status-not_connected">
+          <span style="font-size: 0.8rem;">●</span>
+          <span id="connectionStatusText">Not Connected</span>
+        </div>
+      </div>
+
+      <div id="connectedDeviceBar" style="display: none; align-items: center; gap: 1rem;">
+        <span style="font-size: 0.9rem; color: var(--text-secondary);">
+          Host: <strong id="barDeviceName" style="color: var(--text-primary);">Android Device</strong> (<span id="barDeviceIp" style="font-family: var(--font-mono);">192.168.43.1:8080</span>)
+        </span>
+        <button class="btn btn-secondary btn-sm" onclick="ConnectApp.disconnect()">Disconnect</button>
+      </div>
+    </div>
+
+    <!-- PANEL 1: CONNECTION SETUP -->
+    <section id="connectPanelSection">
+      <!-- Method Selector Tabs -->
+      <div class="method-nav">
+        <button class="method-tab-btn active" data-target="paneQr">
+          <span>📷</span> Method A — Connect via QR Code
+        </button>
+        <button class="method-tab-btn" data-target="paneManual">
+          <span>⌨️</span> Method B — Manual IP &amp; Port
+        </button>
+      </div>
+
+      <!-- METHOD A: QR CODE SCAN / PASTE -->
+      <div id="paneQr" class="method-pane doc-content" style="margin-bottom: 2rem;">
+        <h2 style="margin-top: 0;">Step 1: Start Transfer Session on Android</h2>
+        <p>
+          Open the <strong>ShareLink</strong> app on your Android device and tap <strong>Receive</strong> or <strong>Send Files</strong>. ShareLink starts its high-speed local transfer engine and displays a QR code on the phone screen.
+        </p>
+
+        <h2>Step 2: Scan the QR Code or Paste Link</h2>
+        <div class="scanner-viewfinder" id="qrScannerBox">
+          <video id="qrVideo" playsinline></video>
+          <canvas id="qrCanvas" style="display: none;"></canvas>
+          <div class="scan-laser"></div>
+          <div id="qrScanPrompt" style="position: absolute; text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 1rem;">
+            Click <strong>Start Camera Scanner</strong> to scan QR code
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+          <button id="btnStartQrScanner" class="btn btn-primary btn-sm">📷 Start Camera Scanner</button>
+          <button id="btnFlipQrCamera" class="btn btn-secondary btn-sm">🔄 Flip Camera</button>
+          <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+            📁 Upload QR Image
+            <input type="file" id="qrFileInput" accept="image/*" style="display: none;">
+          </label>
+        </div>
+
+        <div id="qrScanError" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #EF4444; padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 1.5rem; text-align: center;"></div>
+
+        <!-- Manual Paste Input Alternative -->
+        <div style="background-color: var(--bg-surface); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem;">
+            Or Paste Scanned QR Code Link:
+          </label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="qrPasteInput" class="setting-input" style="flex: 1;" placeholder="http://192.168.43.1:8080/s/token123#secret456">
+            <button id="btnParseQrString" class="btn btn-primary btn-sm">Connect</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- METHOD B: MANUAL CONNECTION -->
+      <div id="paneManual" class="method-pane doc-content" style="display: none; margin-bottom: 2rem;">
+        <h2 style="margin-top: 0;">Connect Using Local IP &amp; Port</h2>
+        <p>
+          If your device does not have a camera or cannot scan QR codes, enter the connection details displayed on the Android ShareLink screen:
+        </p>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
+              Android Device IP Address:
+            </label>
+            <input type="text" id="manualIpInput" class="setting-input" value="192.168.43.1" placeholder="192.168.43.1">
+            <div style="margin-top: 0.4rem;">
+              <span class="preset-pill" onclick="document.getElementById('manualIpInput').value='192.168.43.1'">Hotspot: 192.168.43.1</span>
+              <span class="preset-pill" onclick="document.getElementById('manualIpInput').value='192.168.1.'">Wi-Fi: 192.168.1.x</span>
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
+              Server Port:
+            </label>
+            <input type="text" id="manualPortInput" class="setting-input" value="8080" placeholder="8080">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
+            Session Token (Optional):
+          </label>
+          <input type="text" id="manualTokenInput" class="setting-input" placeholder="e.g. 64-character hexadecimal session token">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
+            Pairing Secret (Protected — Never transmitted in plain URL):
+          </label>
+          <input type="password" id="manualSecretInput" class="setting-input" placeholder="Pairing secret from QR hash fragment">
+        </div>
+
+        <div style="text-align: center;">
+          <button id="btnManualConnect" class="btn btn-primary btn-lg" style="width: 100%; max-width: 320px;">
+            🔗 Establish Connection
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-World Browser Security Notice & Direct Launch Result -->
+      <div id="connectionResultContainer" class="security-notice-box" style="display: none;">
+        <div style="display: flex; align-items: flex-start; gap: 1rem;">
+          <div style="font-size: 2rem;">🛡️</div>
+          <div style="flex: 1;">
+            <h3 style="font-size: 1.2rem; font-weight: 750; margin-bottom: 0.5rem; color: var(--text-primary);">
+              Launch Direct Transfer Session
+            </h3>
+
+            <div id="mixedContentNotice">
+              <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1rem;">
+                <strong>Browser Security &amp; Local Network Access Notice:</strong> Because this website is securely hosted on GitHub Pages (<code>HTTPS</code>), modern web browsers (Chrome, Edge, Safari, Firefox) strictly prohibit background requests to unencrypted local network devices (<code>HTTP</code>) due to <strong>Mixed Content</strong> and <strong>Private Network Access (PNA)</strong> security policies.
+              </p>
+              <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.25rem;">
+                To interact with the Android transfer engine with 100% full speed, zero cross-origin barriers, and hardware WebCrypto acceleration, open the direct local session link below:
+              </p>
+            </div>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+              <a id="btnDirectLaunch" href="#" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
+                🚀 Launch Direct Transfer Dashboard ↗
+              </a>
+              <span style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono);">
+                Target: <a id="directUrlLink" href="#" target="_blank" style="color: var(--accent-light);">http://192.168.43.1:8080/</a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: LIVE CONNECTED TRANSFER DASHBOARD (Send & Receive) -->
+    <section id="transferDashboardSection" style="display: none;">
+      <!-- Dashboard Sub-Tabs -->
+      <div class="method-nav">
+        <button class="dash-tab-btn active" data-target="dashPaneSend">
+          <span>🚀</span> Send Files to Android
+        </button>
+        <button class="dash-tab-btn" data-target="dashPaneReceive">
+          <span>📥</span> Receive Files from Android
+        </button>
+        <button class="dash-tab-btn" data-target="dashPaneHistory">
+          <span>📜</span> Transfer History
+        </button>
+      </div>
+
+      <!-- SUB-TAB 1: SEND FILES TO ANDROID -->
+      <div id="dashPaneSend" class="dash-pane doc-content">
+        <h2 style="margin-top: 0;">Upload Files to Connected Device</h2>
+        <p>
+          Select photos, videos, APKs, or documents to stream directly into the Android device's <code>Downloads/ShareLink</code> folder.
+        </p>
+
+        <!-- Drag & Drop Zone -->
+        <div id="sendDropzone" class="dropzone-box" onclick="document.getElementById('sendFileInput').click()">
+          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📁</div>
+          <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Drag &amp; drop files here</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Supports large files up to 10 GB. Fast isolate streaming with backpressure.
+          </p>
+          <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-sm" type="button" onclick="event.stopPropagation(); document.getElementById('sendFileInput').click();">Select Files</button>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="event.stopPropagation(); document.getElementById('sendFolderInput').click();">Select Folder</button>
+          </div>
+        </div>
+
+        <input type="file" id="sendFileInput" multiple style="display: none;">
+        <input type="file" id="sendFolderInput" webkitdirectory directory multiple style="display: none;">
+
+        <!-- Queue Summary -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 0.75rem;">
+          <div style="font-weight: 700; font-size: 1rem;">
+            Selected Queue: <span id="uploadSummaryCount" style="color: var(--accent-light);">0 files</span> (<span id="uploadSummarySize">0 B</span>)
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="ConnectApp.clearUploadQueue()">Clear Queue</button>
+        </div>
+
+        <!-- Selected Files List -->
+        <div id="uploadQueueList" style="margin-bottom: 1.5rem;">
+          <div class="empty-state">No files selected. Drag &amp; drop files above or click to browse.</div>
+        </div>
+
+        <!-- Upload Streaming Progress Bar -->
+        <div id="uploadProgressBox" style="display: none; background: var(--bg-surface); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <strong id="uploadProgressStatus" style="font-size: 0.95rem; color: var(--text-primary);">Preparing upload...</strong>
+            <button id="btnCancelUpload" class="btn btn-secondary btn-sm">Cancel</button>
+          </div>
+          <div class="transfer-progress-bar">
+            <div id="uploadProgressFill" class="progress-fill" style="width: 0%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; font-family: var(--font-mono);">
+            <span id="uploadProgressMetrics">0% • 0 MB/s</span>
+          </div>
+        </div>
+
+        <div style="text-align: center;">
+          <button id="btnStartSend" class="btn btn-primary btn-lg" style="min-width: 240px;" disabled>
+            🚀 Send Files to Android
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-TAB 2: RECEIVE FILES FROM ANDROID -->
+      <div id="dashPaneReceive" class="dash-pane doc-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h2 style="margin: 0;">Files Available from Android Sender</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Select files to stream directly to your browser.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="ConnectApp.downloadAllSelected()">Download Selected</button>
+        </div>
+
+        <div id="receiveFilesList">
+          <div class="empty-state">No files currently offered by the Android sender.</div>
+        </div>
+      </div>
+
+      <!-- SUB-TAB 3: TRANSFER HISTORY -->
+      <div id="dashPaneHistory" class="dash-pane doc-content" style="display: none;">
+        <h2 style="margin-top: 0;">Session Transfer History</h2>
+        <div style="overflow-x: auto; margin-top: 1rem;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                <th style="padding: 0.75rem;">Time</th>
+                <th style="padding: 0.75rem;">Direction</th>
+                <th style="padding: 0.75rem;">Filename</th>
+                <th style="padding: 0.75rem;">Size</th>
+                <th style="padding: 0.75rem;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="historyListTableBody">
+              <tr>
+                <td colspan="5" class="empty-state">No transfers recorded in this session.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="./" class="brand-link">
+            <img src="assets/logo.svg" alt="ShareLink Logo" class="brand-logo">
+            <span class="brand-name">Share<span>Link</span></span>
+          </a>
+          <p>High-speed, offline-first cross-platform file transfer platform by <strong>Gen Soft Tech</strong>.</p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Platform</h5>
+          <ul>
+            <li><a href="./#features">Features</a></li>
+            <li><a href="./#how-it-works">How It Works</a></li>
+            <li><a href="connect.html">Connect &amp; Transfer</a></li>
+            <li><a href="downloads.html">Download APK</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Resources</h5>
+          <ul>
+            <li><a href="docs.html">Protocol Docs</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="./#faq">FAQ</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Developer</h5>
+          <ul>
+            <li><span style="color: var(--text-secondary); font-size: 0.9rem;">Gen Soft Tech</span></li>
+            <li><span style="color: var(--text-muted); font-size: 0.85rem;">Package: com.gensofttech.sharelink</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Gen Soft Tech. All rights reserved. ShareLink is an offline-first file sharing solution.</div>
+        <div>Hosted on GitHub Pages • Universal Cross-Platform Hub</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/qr-scanner.js"></script>
+  <script src="js/connect.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -60,10 +60,13 @@ Navigate to `http://localhost:8000`.
 ## 📄 Site Structure
 
 - `index.html`: Main landing page, interactive UI preview, 3-step workflow, features grid, FAQ.
+- `connect.html`: Cross-platform Connect & Transfer hub with camera QR scanner, manual IP/Port connection, and streaming dashboard.
 - `downloads.html`: Official release information, Android APK specifications, installation guide.
 - `privacy.html`: Comprehensive privacy policy, permissions disclosure, and zero-telemetry guarantee.
 - `docs.html`: Technical specification of the SLTP v2 wire protocol and AES-256-GCM AEAD encryption.
 - `css/style.css`: Premium dark design system with emerald accents.
+- `js/connect.js`: Connection lifecycle manager, genuine state tracking, and streaming upload/download logic.
+- `js/qr-scanner.js`: Zero-CDN offline camera QR code scanner.
 - `js/main.js`: Interactive navigation, FAQ accordion, and transfer preview simulation.
 - `assets/`: Vector SVG logos and favicons.
 
