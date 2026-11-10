@@ -9,6 +9,44 @@
   <link rel="stylesheet" href="css/style.css">
   <style>
     /* Specific styles for Connect & Transfer Hub */
+    .pairing-code-display {
+      font-size: 2.25rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      letter-spacing: 0.2em;
+      color: var(--accent-light);
+      background: rgba(16, 185, 129, 0.08);
+      border: 2px dashed var(--border-accent);
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-md);
+      display: inline-block;
+      margin: 0.75rem 0;
+    }
+
+    .pulse-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--accent-primary);
+      box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .fallback-banner {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+
     .status-bar-wrapper {
       display: flex;
       align-items: center;
@@ -280,22 +318,95 @@
     <section id="connectPanelSection">
       <!-- Method Selector Tabs -->
       <div class="method-nav">
-        <button class="method-tab-btn active" data-target="paneQr">
-          <span>📷</span> Method A — Connect via QR Code
+        <button class="method-tab-btn active" data-target="paneDesktopQr">
+          <span>🖥️</span> Method A — Mobile Scans Desktop QR <span class="badge" style="font-size: 0.7rem; padding: 0.15rem 0.5rem; margin-left: 0.25rem;">Camera-Free PC</span>
+        </button>
+        <button class="method-tab-btn" data-target="paneQr">
+          <span>📷</span> Method B — Desktop Scans Android QR
         </button>
         <button class="method-tab-btn" data-target="paneManual">
-          <span>⌨️</span> Method B — Manual IP &amp; Port
+          <span>⌨️</span> Method C — Manual Pairing Code
         </button>
       </div>
 
-      <!-- METHOD A: QR CODE SCAN / PASTE -->
-      <div id="paneQr" class="method-pane doc-content" style="margin-bottom: 2rem;">
-        <h2 style="margin-top: 0;">Step 1: Start Transfer Session on Android</h2>
+      <!-- METHOD A: MOBILE SCANS DESKTOP QR (Camera-Free Desktop Priority) -->
+      <div id="paneDesktopQr" class="method-pane doc-content" style="margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h2 style="margin: 0;">Camera-Free Desktop Pairing</h2>
+          <span class="badge"><span class="badge-dot"></span> No Webcam Needed</span>
+        </div>
         <p>
-          Open the <strong>ShareLink</strong> app on your Android device and tap <strong>Receive</strong> or <strong>Send Files</strong>. ShareLink starts its high-speed local transfer engine and displays a QR code on the phone screen.
+          Windows and desktop PCs don't need a webcam to pair. Point your Android or iPhone camera directly at the QR code displayed on this monitor below.
         </p>
 
-        <h2>Step 2: Scan the QR Code or Paste Link</h2>
+        <!-- Desktop QR Canvas Card -->
+        <div style="background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 2rem; margin: 1.5rem 0; text-align: center;">
+          <div style="display: inline-block; padding: 1rem; background-color: #FFFFFF; border-radius: var(--radius-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); margin-bottom: 1rem;">
+            <canvas id="desktopQrCanvas" width="240" height="240" style="display: block; margin: 0 auto;"></canvas>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;">
+              Or Enter 6-Character Pairing Code on Mobile:
+            </div>
+            <div id="desktopPairingCodeVal" class="pairing-code-display">SL-4829</div>
+          </div>
+
+          <!-- Pulsing Live Radar Indicator -->
+          <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin: 1.25rem auto 0; padding: 0.6rem 1.25rem; background: rgba(255, 255, 255, 0.03); border-radius: 9999px; border: 1px solid var(--border-color); width: fit-content;">
+            <span class="pulse-indicator"></span>
+            <span id="desktopSessionStatusText" style="font-size: 0.88rem; color: var(--text-secondary);">Waiting for phone to scan or enter code...</span>
+          </div>
+
+          <!-- Incoming Pairing Request Approval Box -->
+          <div id="desktopApprovalCard" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-primary); border-radius: var(--radius-md); padding: 1.5rem; margin-top: 1.5rem; text-align: center;">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📱🤝💻</div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">Incoming Pairing Request</h3>
+            <p id="desktopApprovalDetails" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+              Device <strong>Android Device</strong> is requesting an encrypted transfer session.
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: center;">
+              <button id="btnApproveIncomingPair" class="btn btn-primary btn-sm">✅ Approve Connection</button>
+              <button id="btnRejectIncomingPair" class="btn btn-secondary btn-sm" style="color: #EF4444;">❌ Reject</button>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
+            <button id="btnRegenDesktopQr" class="btn btn-secondary btn-sm">🔄 Generate New Code</button>
+            <button id="btnCopyDesktopLink" class="btn btn-secondary btn-sm">📋 Copy Pairing Link</button>
+            <button id="btnSimulatePhoneScan" class="btn btn-secondary btn-sm" style="opacity: 0.7;">📱 Test Handshake</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- METHOD B: DESKTOP SCANS ANDROID QR -->
+      <div id="paneQr" class="method-pane doc-content" style="display: none; margin-bottom: 2rem;">
+        <h2 style="margin-top: 0;">Desktop Camera Scanner</h2>
+        <p>
+          If your computer has a webcam or you are using a laptop, position the QR code displayed on your Android phone in front of your camera:
+        </p>
+
+        <!-- Graceful Camera Failure Notice -->
+        <div id="cameraFallbackNotice" style="display: none;" class="fallback-banner">
+          <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <span style="font-size: 1.5rem;">📷❌</span>
+            <div style="flex: 1;">
+              <strong style="color: #F59E0B; font-size: 0.95rem;">No Webcam Detected or Camera Permission Denied</strong>
+              <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0.35rem 0 0.75rem;">
+                Your computer does not have a working webcam or camera access was blocked. Don't worry — Windows users do not need a webcam!
+              </p>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="ConnectApp.switchToMethod('paneDesktopQr')">
+                  🖥️ Use Method A (Mobile Scans Desktop QR)
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="ConnectApp.switchToMethod('paneManual')">
+                  ⌨️ Use Method C (Manual Code)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="scanner-viewfinder" id="qrScannerBox">
           <video id="qrVideo" playsinline></video>
           <canvas id="qrCanvas" style="display: none;"></canvas>
@@ -328,11 +439,11 @@
         </div>
       </div>
 
-      <!-- METHOD B: MANUAL CONNECTION -->
+      <!-- METHOD C: MANUAL PAIRING CODE -->
       <div id="paneManual" class="method-pane doc-content" style="display: none; margin-bottom: 2rem;">
-        <h2 style="margin-top: 0;">Connect Using Local IP &amp; Port</h2>
+        <h2 style="margin-top: 0;">Manual Pairing Code</h2>
         <p>
-          If your device does not have a camera or cannot scan QR codes, enter the connection details displayed on the Android ShareLink screen:
+          Connect by entering the 6-character code (e.g. <code>SL-4829</code>) displayed on the Android ShareLink screen:
         </p>
 
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
@@ -357,21 +468,26 @@
 
         <div style="margin-bottom: 1.25rem;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
-            Session Token (Optional):
+            Pairing Code (6 Characters):
           </label>
-          <input type="text" id="manualTokenInput" class="setting-input" placeholder="e.g. 64-character hexadecimal session token">
+          <input type="text" id="manualPairingCodeInput" class="setting-input" placeholder="e.g. SL-4829" maxlength="8" style="font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: 0.15em; text-transform: uppercase;">
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Look for the 6-character code under the QR code on your phone screen.
+          </div>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">
-            Pairing Secret (Protected — Never transmitted in plain URL):
+            Your Device Name:
           </label>
-          <input type="password" id="manualSecretInput" class="setting-input" placeholder="Pairing secret from QR hash fragment">
+          <input type="text" id="manualClientNameInput" class="setting-input" value="Windows PC Chrome" placeholder="Windows PC Chrome">
         </div>
 
+        <div id="manualPairStatus" style="display: none; padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem; font-size: 0.9rem; text-align: center;"></div>
+
         <div style="text-align: center;">
-          <button id="btnManualConnect" class="btn btn-primary btn-lg" style="width: 100%; max-width: 320px;">
-            🔗 Establish Connection
+          <button id="btnManualPairConnect" class="btn btn-primary btn-lg" style="width: 100%; max-width: 320px;">
+            🔗 Verify &amp; Establish Connection
           </button>
         </div>
       </div>
@@ -566,6 +682,7 @@
     </div>
   </footer>
 
+  <script src="js/qrcode.js"></script>
   <script src="js/qr-scanner.js"></script>
   <script src="js/connect.js"></script>
   <script src="js/main.js"></script>

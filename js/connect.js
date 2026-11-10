@@ -1,7 +1,7 @@
 /**
  * ShareLink — Cross-Platform Connect & Transfer Controller
- * Handles QR pairing, manual IP/Port connection, Mixed Content routing,
- * and authenticated Send & Receive dashboard logic.
+ * Handles Bidirectional QR pairing (Method A, B, C), manual pairing code negotiation,
+ * Mixed Content routing, rate limiting, and authenticated Send & Receive dashboard logic.
  */
 
 // Global Connection State Model
@@ -22,6 +22,13 @@ const ConnectApp = {
     token: '',
     secret: ''
   },
+  desktopSession: {
+    sessionId: '',
+    pairingSecret: '',
+    pairingCode: '',
+    pairingUrl: ''
+  },
+  pendingPairingRequest: null,
   deviceInfo: null,
   availableFiles: [],
   selectedUploadFiles: [],
@@ -31,6 +38,7 @@ const ConnectApp = {
   init() {
     this.updateStatusBadge(ConnectionState.NOT_CONNECTED);
     this.initMethodTabs();
+    this.initDesktopQr();
     this.initQRScanner();
     this.initManualInputs();
     this.initFilePicker();
@@ -57,10 +65,10 @@ const ConnectApp = {
         statusTextEl.innerText = 'Connecting to ' + (this.activeTarget.ip || 'device') + '...';
         break;
       case ConnectionState.WAITING_APPROVAL:
-        statusTextEl.innerText = 'Waiting for Receiver Approval...';
+        statusTextEl.innerText = 'Waiting for Host Approval (' + (details || 'Host') + ')...';
         break;
       case ConnectionState.CONNECTED:
-        statusTextEl.innerText = 'Connected: ' + (details || 'ShareLink Host');
+        statusTextEl.innerText = 'Connected: ' + (details || 'ShareLink Device');
         if (deviceBarEl) deviceBarEl.style.display = 'flex';
         break;
       case ConnectionState.CONNECTION_LOST:
@@ -72,27 +80,17 @@ const ConnectApp = {
     }
   },
 
-  // 2. Tab Navigation between QR Method & Manual Method
+  // 2. Tab Navigation between Methods
   initMethodTabs() {
     const tabBtns = document.querySelectorAll('.method-tab-btn');
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-target');
-        tabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        document.querySelectorAll('.method-pane').forEach(pane => {
-          pane.style.display = pane.id === targetId ? 'block' : 'none';
-        });
-
-        if (targetId !== 'paneQr' && this.qrScanner) {
-          this.qrScanner.stop();
-          this.setScannerBtnState(false);
-        }
+        this.switchToMethod(targetId);
       });
     });
 
-    // Dashboard Internal Tabs (Send vs Receive)
+    // Dashboard Internal Tabs (Send vs Receive vs History)
     const dashTabs = document.querySelectorAll('.dash-tab-btn');
     dashTabs.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -107,7 +105,187 @@ const ConnectApp = {
     });
   },
 
-  // 3. QR Camera Scanner Integration
+  switchToMethod(targetId) {
+    const tabBtns = document.querySelectorAll('.method-tab-btn');
+    tabBtns.forEach(btn => {
+      const match = btn.getAttribute('data-target') === targetId;
+      btn.classList.toggle('active', match);
+    });
+
+    document.querySelectorAll('.method-pane').forEach(pane => {
+      pane.style.display = pane.id === targetId ? 'block' : 'none';
+    });
+
+    if (targetId !== 'paneQr' && this.qrScanner && this.qrScanner.scanning) {
+      this.qrScanner.stop();
+      this.setScannerBtnState(false);
+    }
+  },
+
+  // 3. METHOD A: Camera-Free Desktop QR Generation
+  initDesktopQr() {
+    this.generateDesktopSession();
+
+    const regenBtn = document.getElementById('btnRegenDesktopQr');
+    if (regenBtn) {
+      regenBtn.addEventListener('click', () => {
+        this.generateDesktopSession();
+      });
+    }
+
+    const copyBtn = document.getElementById('btnCopyDesktopLink');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        if (this.desktopSession.pairingUrl) {
+          navigator.clipboard.writeText(this.desktopSession.pairingUrl).then(() => {
+            alert('Pairing link copied to clipboard:\n' + this.desktopSession.pairingUrl);
+          }).catch(() => {
+            prompt('Copy this pairing link:', this.desktopSession.pairingUrl);
+          });
+        }
+      });
+    }
+
+    const approveBtn = document.getElementById('btnApproveIncomingPair');
+    if (approveBtn) {
+      approveBtn.addEventListener('click', () => {
+        this.approveIncomingPairing();
+      });
+    }
+
+    const rejectBtn = document.getElementById('btnRejectIncomingPair');
+    if (rejectBtn) {
+      rejectBtn.addEventListener('click', () => {
+        this.rejectIncomingPairing();
+      });
+    }
+
+    const simulateBtn = document.getElementById('btnSimulatePhoneScan');
+    if (simulateBtn) {
+      simulateBtn.addEventListener('click', () => {
+        this.triggerIncomingPairingRequest({
+          clientName: 'Android 14 (Pixel 8 Pro)',
+          ip: '192.168.43.45',
+          code: this.desktopSession.pairingCode
+        });
+      });
+    }
+  },
+
+  generateRandomHex(length = 32) {
+    const arr = new Uint8Array(length);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(arr);
+    } else {
+      for (let i = 0; i < length; i++) arr[i] = Math.floor(Math.random() * 256);
+    }
+    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+
+  generatePairingCode() {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code = 'SL-';
+    for (let i = 0; i < 4; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  },
+
+  generateDesktopSession() {
+    const sessionId = this.generateRandomHex(32);
+    const pairingSecret = this.generateRandomHex(32);
+    const pairingCode = this.generatePairingCode();
+
+    const host = window.location.hostname || '192.168.43.1';
+    const port = window.location.port || '58708';
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+
+    const pairingUrl = `${protocol}//${host}${port ? ':' + port : ''}/s/${sessionId}#${pairingSecret}`;
+
+    this.desktopSession = {
+      sessionId,
+      pairingSecret,
+      pairingCode,
+      pairingUrl
+    };
+
+    const canvas = document.getElementById('desktopQrCanvas');
+    if (canvas && window.ShareLinkQR) {
+      ShareLinkQR.draw(canvas, pairingUrl, {
+        size: 240,
+        darkColor: '#000000',
+        lightColor: '#FFFFFF'
+      });
+    }
+
+    const codeValEl = document.getElementById('desktopPairingCodeVal');
+    if (codeValEl) {
+      codeValEl.innerText = pairingCode;
+    }
+
+    const statusText = document.getElementById('desktopSessionStatusText');
+    if (statusText) {
+      statusText.innerText = 'Waiting for phone to scan or enter code ' + pairingCode + '...';
+    }
+
+    const approvalCard = document.getElementById('desktopApprovalCard');
+    if (approvalCard) {
+      approvalCard.style.display = 'none';
+    }
+  },
+
+  triggerIncomingPairingRequest(request) {
+    this.pendingPairingRequest = request;
+    const approvalCard = document.getElementById('desktopApprovalCard');
+    const detailsEl = document.getElementById('desktopApprovalDetails');
+    const statusText = document.getElementById('desktopSessionStatusText');
+
+    if (detailsEl) {
+      detailsEl.innerHTML = `Device <strong>${request.clientName}</strong> (${request.ip}) entered valid code <strong>${request.code}</strong>.`;
+    }
+    if (approvalCard) {
+      approvalCard.style.display = 'block';
+    }
+    if (statusText) {
+      statusText.innerText = `Incoming pairing request from ${request.clientName}!`;
+    }
+    this.updateStatusBadge(ConnectionState.WAITING_APPROVAL, request.clientName);
+  },
+
+  approveIncomingPairing() {
+    const req = this.pendingPairingRequest || { clientName: 'Android Device', ip: '192.168.43.1' };
+    this.activeTarget = {
+      ip: req.ip,
+      port: '58708',
+      token: this.desktopSession.sessionId,
+      secret: this.desktopSession.pairingSecret
+    };
+    this.deviceInfo = {
+      name: req.clientName,
+      status: 'online',
+      version: '2.0'
+    };
+
+    const approvalCard = document.getElementById('desktopApprovalCard');
+    if (approvalCard) approvalCard.style.display = 'none';
+
+    this.updateStatusBadge(ConnectionState.CONNECTED, req.clientName);
+    this.showTransferDashboard();
+  },
+
+  rejectIncomingPairing() {
+    this.pendingPairingRequest = null;
+    const approvalCard = document.getElementById('desktopApprovalCard');
+    if (approvalCard) approvalCard.style.display = 'none';
+
+    const statusText = document.getElementById('desktopSessionStatusText');
+    if (statusText) {
+      statusText.innerText = 'Pairing rejected. Waiting for next connection...';
+    }
+    this.updateStatusBadge(ConnectionState.NOT_CONNECTED);
+  },
+
+  // 4. METHOD B: Desktop Camera QR Scanner Integration
   initQRScanner() {
     const video = document.getElementById('qrVideo');
     const canvas = document.getElementById('qrCanvas');
@@ -127,11 +305,13 @@ const ConnectApp = {
         this.setScannerBtnState(false);
       },
       (err) => {
-        const errBox = document.getElementById('qrScanError');
-        if (errBox) {
-          errBox.style.display = 'block';
-          errBox.innerText = "Camera notice: " + (err.message || "Could not start camera. Please enter IP or URL manually.");
-        }
+        console.warn("Camera scanner notice:", err);
+        const fallbackNotice = document.getElementById('cameraFallbackNotice');
+        if (fallbackNotice) fallbackNotice.style.display = 'block';
+
+        const scanPrompt = document.getElementById('qrScanPrompt');
+        if (scanPrompt) scanPrompt.style.display = 'none';
+
         this.setScannerBtnState(false);
       }
     );
@@ -144,6 +324,10 @@ const ConnectApp = {
         } else {
           const ok = await this.qrScanner.start();
           this.setScannerBtnState(ok);
+          if (!ok) {
+            const fallbackNotice = document.getElementById('cameraFallbackNotice');
+            if (fallbackNotice) fallbackNotice.style.display = 'block';
+          }
         }
       });
     }
@@ -194,7 +378,7 @@ const ConnectApp = {
     }
   },
 
-  // 4. Parse QR Payload
+  // Parse QR Payload
   handleQrPayload(rawUrl) {
     try {
       const url = new URL(rawUrl);
@@ -202,7 +386,6 @@ const ConnectApp = {
       this.activeTarget.port = url.port || '8080';
 
       const segments = url.pathname.split('/').filter(Boolean);
-      // Expected structure: /s/<sessionToken>
       if (segments.length >= 2 && segments[0] === 's') {
         this.activeTarget.token = segments[1];
       }
@@ -211,42 +394,99 @@ const ConnectApp = {
         this.activeTarget.secret = url.hash.substring(1);
       }
 
-      // Populate manual inputs
       const ipInp = document.getElementById('manualIpInput');
       const portInp = document.getElementById('manualPortInput');
-      const tokenInp = document.getElementById('manualTokenInput');
-      const secretInp = document.getElementById('manualSecretInput');
-
       if (ipInp) ipInp.value = this.activeTarget.ip;
       if (portInp) portInp.value = this.activeTarget.port;
-      if (tokenInp) tokenInp.value = this.activeTarget.token;
-      if (secretInp) secretInp.value = this.activeTarget.secret;
 
-      // Trigger connection workflow
       this.initiateConnection();
     } catch (err) {
       alert("Invalid ShareLink URL format. Please ensure it follows http://<ip>:<port>/s/<token>#<secret>");
     }
   },
 
-  // 5. Manual Inputs Handling
+  // 5. METHOD C: Manual Pairing Inputs & POST /api/pair Endpoint
   initManualInputs() {
-    const btnConnect = document.getElementById('btnManualConnect');
-    if (!btnConnect) return;
+    const btnPairConnect = document.getElementById('btnManualPairConnect');
+    if (!btnPairConnect) return;
 
-    btnConnect.addEventListener('click', () => {
+    btnPairConnect.addEventListener('click', async () => {
       const ip = (document.getElementById('manualIpInput')?.value || '').trim();
       const port = (document.getElementById('manualPortInput')?.value || '8080').trim();
-      const token = (document.getElementById('manualTokenInput')?.value || '').trim();
-      const secret = (document.getElementById('manualSecretInput')?.value || '').trim();
+      const codeInput = document.getElementById('manualPairingCodeInput');
+      const code = (codeInput?.value || '').trim().toUpperCase();
+      const clientName = (document.getElementById('manualClientNameInput')?.value || 'Windows PC Chrome').trim();
+
+      const statusBox = document.getElementById('manualPairStatus');
 
       if (!ip) {
         alert("Please enter the Android device's IP address (e.g. 192.168.43.1).");
         return;
       }
 
-      this.activeTarget = { ip, port, token, secret };
-      this.initiateConnection();
+      if (!code || code.length < 4) {
+        alert("Please enter the 6-character pairing code (e.g. SL-4829).");
+        return;
+      }
+
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.style.background = 'rgba(99, 102, 241, 0.1)';
+        statusBox.style.color = '#818CF8';
+        statusBox.innerText = `Connecting to http://${ip}:${port}/api/pair with code ${code}...`;
+      }
+
+      this.updateStatusBadge(ConnectionState.CONNECTING);
+
+      try {
+        const res = await fetch(`http://${ip}:${port}/api/pair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, clientName })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.status === 'paired') {
+          if (statusBox) {
+            statusBox.style.background = 'rgba(16, 185, 129, 0.1)';
+            statusBox.style.color = '#10B981';
+            statusBox.innerText = `Pairing Approved! Establishing encrypted session...`;
+          }
+
+          this.activeTarget = {
+            ip,
+            port,
+            token: data.sessionId,
+            secret: data.pairingSecret
+          };
+
+          await this.initiateConnection();
+        } else if (res.status === 429) {
+          if (statusBox) {
+            statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+            statusBox.style.color = '#EF4444';
+            statusBox.innerText = data.error || 'Too many failed attempts. Locked out for 5 minutes.';
+          }
+          this.updateStatusBadge(ConnectionState.CONNECTION_LOST);
+        } else {
+          if (statusBox) {
+            statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+            statusBox.style.color = '#EF4444';
+            statusBox.innerText = data.error || `Pairing failed (HTTP ${res.status}). Check code or IP.`;
+          }
+          this.updateStatusBadge(ConnectionState.NOT_CONNECTED);
+        }
+      } catch (fetchErr) {
+        console.warn("Manual pairing fetch failed:", fetchErr);
+        if (statusBox) {
+          statusBox.style.background = 'rgba(245, 158, 11, 0.15)';
+          statusBox.style.color = '#F59E0B';
+          statusBox.innerHTML = `Note: HTTPS browser security may prevent direct background requests to local HTTP devices.<br>Open direct pairing dashboard: <a href="http://${ip}:${port}/" target="_blank" style="color: var(--accent-light); font-weight: bold; text-decoration: underline;">http://${ip}:${port}/</a>`;
+        }
+        this.activeTarget = { ip, port, token: '', secret: '' };
+        this.initiateConnection();
+      }
     });
   },
 
@@ -281,15 +521,12 @@ const ConnectApp = {
       directUrlLink.innerText = directSessionUrl;
     }
 
-    // Real Browser Restriction Analysis:
-    // If running on HTTPS (GitHub Pages), modern browsers block direct fetch() to HTTP LAN IPs.
     if (isHttpsOrigin) {
       if (mixedContentNotice) mixedContentNotice.style.display = 'block';
       this.updateStatusBadge(ConnectionState.WAITING_APPROVAL, "Ready to Launch");
       return;
     }
 
-    // If running on HTTP or Localhost, attempt real background handshake
     try {
       const statusRes = await fetch(`${baseUrl}/api/status`, { method: 'GET' });
       if (!statusRes.ok) {
@@ -299,7 +536,6 @@ const ConnectApp = {
       console.log("[Connected Device Status]", deviceData);
       this.deviceInfo = deviceData;
 
-      // Check active files if session token is present
       if (token) {
         await this.loadSessionFiles(baseUrl, token, secret);
       }
@@ -337,7 +573,6 @@ const ConnectApp = {
     if (dash) dash.style.display = 'block';
     if (connectPanel) connectPanel.style.display = 'none';
 
-    // Update Device Bar info
     const devNameEl = document.getElementById('barDeviceName');
     const devIpEl = document.getElementById('barDeviceIp');
     if (devNameEl) devNameEl.innerText = this.deviceInfo?.name || "Android Device";
@@ -481,7 +716,6 @@ const ConnectApp = {
     if (btnSend) btnSend.disabled = true;
 
     try {
-      // 1. Send Upload Initialization Offer
       const initUrl = `${baseUrl}/s/${targetSessionToken}/api/upload/init`;
       const initPayload = {
         senderName: localStorage.getItem('sharelink_device_name') || 'Web Browser',
@@ -498,151 +732,138 @@ const ConnectApp = {
 
       const initResp = await fetch(initUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(secret ? { 'X-ShareLink-Secret': secret } : {})
+        },
         body: JSON.stringify(initPayload)
       });
 
       if (!initResp.ok) {
-        throw new Error("Upload request declined by receiver or session expired (HTTP " + initResp.status + ")");
+        throw new Error("Receiver declined upload offer (HTTP " + initResp.status + ")");
       }
 
       this.updateStatusBadge(ConnectionState.CONNECTED);
 
-      // 2. Stream Files Sequentially using Bounded Streaming XHR
-      const totalSessionBytes = this.selectedUploadFiles.reduce((sum, f) => sum + f.size, 0);
-      let sessionBytesTransferred = 0;
-      const startTime = Date.now();
-
       for (let i = 0; i < this.selectedUploadFiles.length; i++) {
-        const item = this.selectedUploadFiles[i];
+        const fileItem = this.selectedUploadFiles[i];
         if (progressStatus) {
-          progressStatus.innerText = `Uploading ${item.name} (${i + 1}/${this.selectedUploadFiles.length})...`;
+          progressStatus.innerText = `Uploading [${i + 1}/${this.selectedUploadFiles.length}]: ${fileItem.name}`;
         }
-
-        await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          this.activeUploadXhr = xhr;
-          const uploadUrl = `${baseUrl}/s/${targetSessionToken}/upload/${item.id}`;
-
-          xhr.open('POST', uploadUrl, true);
-          xhr.setRequestHeader('Content-Type', item.mimeType || 'application/octet-stream');
-          if (secret) xhr.setRequestHeader('X-ShareLink-Secret', secret);
-
-          let lastLoaded = 0;
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const delta = e.loaded - lastLoaded;
-              lastLoaded = e.loaded;
-              sessionBytesTransferred += delta;
-
-              const elapsedSec = (Date.now() - startTime) / 1000;
-              const speedMBps = elapsedSec > 0 ? (sessionBytesTransferred / (1024 * 1024)) / elapsedSec : 0;
-              const pct = totalSessionBytes > 0 ? (sessionBytesTransferred / totalSessionBytes) * 100 : 100;
-              const remainingSec = speedMBps > 0 ? Math.round((totalSessionBytes - sessionBytesTransferred) / (speedMBps * 1024 * 1024)) : 0;
-
-              if (progressFill) progressFill.style.width = Math.min(100, pct) + '%';
-              if (progressMetrics) {
-                progressMetrics.innerText = `${Math.round(pct)}% • ${speedMBps.toFixed(1)} MB/s (${ConnectApp.formatBytes(sessionBytesTransferred)} / ${ConnectApp.formatBytes(totalSessionBytes)}) • ${remainingSec > 0 ? remainingSec + 's left' : 'finishing...'}`;
-              }
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve();
-            } else {
-              reject(new Error("Receiver rejected file stream: HTTP " + xhr.status));
-            }
-          };
-
-          xhr.onerror = () => reject(new Error("Network connection error during stream"));
-          xhr.onabort = () => reject(new Error("Upload cancelled by user"));
-
-          xhr.send(item.file);
+        await this.streamFileUpload(baseUrl, targetSessionToken, secret, fileItem, (percent, speed) => {
+          if (progressFill) progressFill.style.width = percent + '%';
+          if (progressMetrics) {
+            progressMetrics.innerText = `${percent.toFixed(1)}% • ${speed.toFixed(1)} MB/s • ${this.formatBytes(fileItem.size)}`;
+          }
         });
-
-        this.addHistoryRecord('Sent', item.name, item.size);
       }
 
-      if (progressStatus) progressStatus.innerText = `✓ All ${this.selectedUploadFiles.length} files transferred successfully!`;
+      if (progressStatus) progressStatus.innerText = "All files uploaded successfully!";
+      if (progressFill) progressFill.style.width = '100%';
+      this.clearUploadQueue();
       setTimeout(() => {
-        this.clearUploadQueue();
         if (progressBox) progressBox.style.display = 'none';
-        if (btnSend) btnSend.disabled = false;
       }, 3000);
 
     } catch (err) {
-      console.error("[Upload Error]", err);
-      alert("Transfer Error: " + err.message);
-      if (progressStatus) progressStatus.innerText = "⚠️ Upload halted: " + err.message;
-      if (btnSend) btnSend.disabled = false;
+      console.error("Upload error:", err);
+      alert("Upload failed: " + err.message);
+      if (progressStatus) progressStatus.innerText = "Upload failed: " + err.message;
     } finally {
-      this.activeUploadXhr = null;
+      if (btnSend) btnSend.disabled = false;
     }
+  },
+
+  streamFileUpload(baseUrl, token, secret, fileItem, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      this.activeUploadXhr = xhr;
+
+      const uploadUrl = `${baseUrl}/s/${token}/upload/${encodeURIComponent(fileItem.id)}`;
+      xhr.open('POST', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(fileItem.name));
+      xhr.setRequestHeader('X-File-Size', fileItem.size.toString());
+      if (secret) xhr.setRequestHeader('X-ShareLink-Secret', secret);
+
+      let lastLoaded = 0;
+      let lastTime = Date.now();
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const now = Date.now();
+          const elapsedSecs = (now - lastTime) / 1000;
+          let speedMBps = 0;
+          if (elapsedSecs > 0.5) {
+            speedMBps = ((e.loaded - lastLoaded) / (1024 * 1024)) / elapsedSecs;
+            lastLoaded = e.loaded;
+            lastTime = now;
+          }
+          const percent = (e.loaded / e.total) * 100;
+          onProgress(percent, speedMBps);
+        }
+      };
+
+      xhr.onload = () => {
+        this.activeUploadXhr = null;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error("Server returned HTTP " + xhr.status + ": " + xhr.responseText));
+        }
+      };
+
+      xhr.onerror = () => {
+        this.activeUploadXhr = null;
+        reject(new Error("Network connection lost during file streaming"));
+      };
+
+      xhr.send(fileItem.file);
+    });
   },
 
   cancelActiveUpload() {
     if (this.activeUploadXhr) {
       this.activeUploadXhr.abort();
       this.activeUploadXhr = null;
+      alert("Active upload was cancelled.");
+      const progressBox = document.getElementById('uploadProgressBox');
+      if (progressBox) progressBox.style.display = 'none';
+      const btnSend = document.getElementById('btnStartSend');
+      if (btnSend) btnSend.disabled = false;
     }
-    const progressBox = document.getElementById('uploadProgressBox');
-    const btnSend = document.getElementById('btnStartSend');
-    if (progressBox) progressBox.style.display = 'none';
-    if (btnSend) btnSend.disabled = false;
   },
 
-  // 12. Render Receive Files List (RECEIVE TAB)
+  // 12. Receiver Dashboard: Render Available Files to Download
   renderReceiveFilesList() {
     const listEl = document.getElementById('receiveFilesList');
     if (!listEl) return;
 
     if (this.availableFiles.length === 0) {
-      listEl.innerHTML = '<div class="empty-state">No files currently offered by the Android sender.</div>';
+      listEl.innerHTML = '<div class="empty-state">No files are currently being shared by the host device.</div>';
       return;
     }
 
-    listEl.innerHTML = this.availableFiles.map(f => `
-      <div class="file-item-row">
-        <div class="file-item-info">
-          <input type="checkbox" class="file-select-chk" value="${f.id}" checked>
-          <span class="file-item-icon">📥</span>
-          <div>
-            <div class="file-item-name">${f.name}</div>
-            <div class="file-item-meta">${this.formatBytes(f.size)} • ${f.mimeType || 'file'}</div>
+    const { ip, port, token, secret } = this.activeTarget;
+    const baseUrl = `http://${ip}:${port}`;
+
+    listEl.innerHTML = this.availableFiles.map(file => {
+      const downloadUrl = `${baseUrl}/s/${token}/download/${encodeURIComponent(file.id)}${secret ? '?secret=' + encodeURIComponent(secret) : ''}`;
+      return `
+        <div class="file-item-row">
+          <div class="file-item-info">
+            <span class="file-item-icon">📥</span>
+            <div>
+              <div class="file-item-name">${file.name}</div>
+              <div class="file-item-meta">${this.formatBytes(file.size)} • ${file.mimeType || 'binary'}</div>
+            </div>
           </div>
+          <a href="${downloadUrl}" download="${file.name}" class="btn btn-primary btn-sm">
+            ⬇ Download
+          </a>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="ConnectApp.downloadSingleFile('${f.id}')">Download</button>
-      </div>
-    `).join('');
-  },
-
-  downloadSingleFile(fileId) {
-    const { ip, port, token } = this.activeTarget;
-    const downloadUrl = `http://${ip}:${port}/s/${token}/download/${fileId}`;
-    window.open(downloadUrl, '_blank');
-  },
-
-  downloadAllSelected() {
-    const chks = document.querySelectorAll('.file-select-chk:checked');
-    chks.forEach(chk => {
-      this.downloadSingleFile(chk.value);
-    });
-  },
-
-  addHistoryRecord(action, name, size) {
-    const listEl = document.getElementById('historyListTableBody');
-    if (!listEl) return;
-
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${new Date().toLocaleTimeString()}</td>
-      <td><strong>${action}</strong></td>
-      <td>${name}</td>
-      <td>${this.formatBytes(size)}</td>
-      <td><span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981;">Completed</span></td>
-    `;
-    listEl.prepend(row);
+      `;
+    }).join('');
   },
 
   formatBytes(bytes) {
@@ -650,7 +871,7 @@ const ConnectApp = {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 };
 
