@@ -18,7 +18,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initMobileMenu();
   initFaqAccordion();
   initDownloadButtons();
-  initTransferSimulation();
 });
 
 // 1. Mobile Menu Toggle
@@ -81,37 +80,4 @@ function initDownloadButtons() {
       }
     });
   });
-}
-
-// 4. Hero Preview Transfer Simulation
-function initTransferSimulation() {
-  const progressFill = document.getElementById("simProgressFill");
-  const statsSpeed = document.getElementById("simSpeed");
-  const statsBytes = document.getElementById("simBytes");
-  const statsEta = document.getElementById("simEta");
-
-  if (!progressFill || !statsSpeed || !statsBytes || !statsEta) return;
-
-  const totalSizeMB = 248.5;
-  let currentMB = 48.2;
-  let speedMBps = 24.6;
-
-  setInterval(() => {
-    currentMB += 4.2;
-    if (currentMB > totalSizeMB) {
-      currentMB = 12.0; // Loop simulation
-    }
-
-    const pct = Math.min(100, Math.round((currentMB / totalSizeMB) * 100));
-    const remainingMB = Math.max(0, totalSizeMB - currentMB);
-    const etaSec = Math.max(1, Math.round(remainingMB / speedMBps));
-
-    // Jitter speed realistically (22 MB/s to 28 MB/s on local 5GHz Wi-Fi)
-    speedMBps = (22.0 + Math.random() * 6.5).toFixed(1);
-
-    progressFill.style.width = pct + "%";
-    statsSpeed.textContent = speedMBps + " MB/s";
-    statsBytes.textContent = currentMB.toFixed(1) + " MB / " + totalSizeMB + " MB (" + pct + "%)";
-    statsEta.textContent = etaSec + "s";
-  }, 350);
 }

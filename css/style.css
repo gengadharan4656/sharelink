@@ -385,7 +385,7 @@ header.site-header {
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
-  margin: 3.5rem 0;
+  margin: 3rem 0 1rem;
   display: flex;
   align-items: flex-start;
   gap: 1.25rem;
